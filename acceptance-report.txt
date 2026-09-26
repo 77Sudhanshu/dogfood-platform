@@ -1,0 +1,83 @@
+DOGFOOD PLATFORM — ACCEPTANCE REPORT
+
+Environment
+-----------
+Docker Desktop
+Docker Compose
+PostgreSQL 17
+Next.js production build
+Prisma ORM
+
+
+Docker Deployment
+-----------------
+[PASS] Docker Compose configuration validated
+[PASS] Docker image builds successfully
+[PASS] PostgreSQL container starts successfully
+[PASS] PostgreSQL health check succeeds
+[PASS] Prisma schema synchronizes during startup
+[PASS] Demo fixture users are seeded automatically
+[PASS] Next.js production server starts successfully
+
+
+Application Health
+------------------
+[PASS] GET /api/health returns HTTP 200
+[PASS] Health endpoint reports database: connected
+[PASS] Dockerized frontend loads successfully
+[PASS] Public project gallery loads successfully
+[PASS] FraudShield AI appears in the project gallery
+
+
+Authentication
+--------------
+[PASS] Participant login succeeds
+[PASS] Judge login succeeds
+[PASS] Organizer login succeeds
+[PASS] Admin login succeeds
+[PASS] Session authentication works in Docker
+
+
+Role Isolation
+--------------
+[PASS] Participant accessing normalization returns HTTP 403
+[PASS] Judge accessing normalization returns HTTP 403
+[PASS] Organizer accessing normalization returns HTTP 200
+[PASS] Admin accessing normalization returns HTTP 200
+[PASS] Judge evaluation progress returns HTTP 200
+
+
+Database
+--------
+[PASS] PostgreSQL connection from application verified
+[PASS] Prisma database schema verified during Docker startup
+[PASS] Application can read event and project data
+
+
+Judging
+-------
+[PASS] Judge progress endpoint works
+[PASS] Organizer normalization endpoint works
+[PASS] Judge is prevented from accessing normalization
+[PASS] Participant is prevented from accessing normalization
+
+
+Community Features
+------------------
+[PASS] Public gallery endpoint works without authentication
+[PASS] Community voting implemented
+[PASS] Duplicate community voting prevented
+[PASS] Project comments implemented
+[PASS] Comment rate limiting implemented
+[PASS] Duplicate comment detection implemented
+[PASS] Community actions recorded in audit logs
+
+
+Overall
+-------
+The Dockerized Dogfood platform successfully builds, starts,
+connects to PostgreSQL, seeds fixture data, authenticates users,
+enforces backend role isolation, and serves the public gallery.
+
+The acceptance tests above were executed against the local
+Dockerized production application.

@@ -1,0 +1,309 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  PARTICIPANT
+  JUDGE
+  ORGANIZER
+  ADMIN
+}
+
+enum EventStatus {
+  DRAFT
+  UPCOMING
+  ACTIVE
+  JUDGING
+  COMPLETED
+  ARCHIVED
+}
+
+enum TeamRole {
+  LEADER
+  MEMBER
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  LOCKED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(PARTICIPANT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teamMemberships TeamMember[]
+  ownedTeams      Team[] @relation("TeamLeader")
+
+  createdEvents Event[] @relation("EventCreator")
+
+    judges Judge[]
+
+  auditLogs AuditLog[] @relation("AuditActor")
+
+  communityVotes CommunityVote[]
+  projectComments ProjectComment[]
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+    description String?
+  status      EventStatus @default(DRAFT)
+
+  communityVotingEnabled Boolean @default(false)
+  communityResultsHidden Boolean @default(true)
+
+  registrationStart DateTime?
+  registrationEnd   DateTime?
+  submissionStart   DateTime?
+  submissionEnd     DateTime?
+  judgingStart      DateTime?
+  judgingEnd        DateTime?
+
+  createdById String
+  createdBy   User   @relation("EventCreator", fields: [createdById], references: [id])
+
+  tracks   Track[]
+  prizes   Prize[]
+  teams    Team[]
+  projects Project[]
+  judges   Judge[]
+  rubrics  Rubric[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Track {
+  id   String @id @default(cuid())
+  name String
+  slug String
+
+  eventId String
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  projects Project[]
+
+  @@unique([eventId, slug])
+}
+
+model Prize {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  amount      Decimal?
+
+  eventId String
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model Team {
+  id   String @id @default(cuid())
+  name String
+
+  eventId String
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  leaderId String
+  leader   User   @relation("TeamLeader", fields: [leaderId], references: [id])
+
+  members TeamMember[]
+  project Project?
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, name])
+}
+
+model TeamMember {
+  id String @id @default(cuid())
+
+  teamId String
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role TeamRole @default(MEMBER)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model Project {
+  id           String           @id @default(cuid())
+  name         String
+  slug         String
+  description  String?
+  githubUrl    String?
+  demoUrl      String?
+  videoUrl     String?
+  technologies String?
+  status       SubmissionStatus @default(DRAFT)
+
+  eventId String
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  trackId String?
+  track   Track? @relation(fields: [trackId], references: [id])
+
+  teamId String @unique
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  submittedAt DateTime?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+    evaluations      Evaluation[]
+  judgeAssignments JudgeAssignment[]
+  communityVotes   CommunityVote[]
+  comments ProjectComment[]
+
+  @@unique([eventId, slug])
+}
+
+model Judge {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  eventId String
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  assignments JudgeAssignment[]
+  evaluations Evaluation[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model JudgeAssignment {
+  id String @id @default(cuid())
+
+  judgeId   String
+  judge     Judge @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@unique([judgeId, projectId])
+}
+
+model Rubric {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+
+  eventId String
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  criteria RubricCriterion[]
+}
+
+model RubricCriterion {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+
+  weight   Decimal
+  maxScore Int @default(10)
+
+  rubricId String
+  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+
+  scores EvaluationScore[]
+}
+
+model Evaluation {
+  id String @id @default(cuid())
+
+  judgeId String
+  judge Judge @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  comment String?
+
+  scores EvaluationScore[]
+
+  submittedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([judgeId, projectId])
+}
+
+model EvaluationScore {
+  id String @id @default(cuid())
+
+  evaluationId String
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  criterionId String
+  criterion RubricCriterion @relation(fields: [criterionId], references: [id])
+
+  score Decimal
+
+  @@unique([evaluationId, criterionId])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  actorId String?
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  action String
+  entity String
+  entityId String?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+}
+model CommunityVote {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+}
+model ProjectComment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+}
