@@ -80,6 +80,9 @@ The platform protects the judging workflow through:
 - Audit logs
 - Balanced assignment algorithm
 - Normalization utilities with automated tests
+- Pairwise comparison validation
+- Duplicate pairwise comparison protection
+- Pairwise audit logging
 
 Batch assignment actions are recorded in the audit log using:
 

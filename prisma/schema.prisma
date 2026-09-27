@@ -83,6 +83,7 @@ model Event {
   projects Project[]
   judges   Judge[]
   rubrics  Rubric[]
+  auditLogs AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -174,6 +175,10 @@ model Project {
   communityVotes   CommunityVote[]
   comments ProjectComment[]
 
+  pairwiseAsProjectA PairwiseComparison[] @relation("PairwiseProjectA")
+pairwiseAsProjectB PairwiseComparison[] @relation("PairwiseProjectB")
+pairwiseWins       PairwiseComparison[] @relation("PairwiseWinner")
+
   @@unique([eventId, slug])
 }
 
@@ -186,9 +191,9 @@ model Judge {
   eventId String
   event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  assignments JudgeAssignment[]
-  evaluations Evaluation[]
-
+  assignments          JudgeAssignment[]
+  evaluations          Evaluation[]
+  pairwiseComparisons  PairwiseComparison[]
   createdAt DateTime @default(now())
 
   @@unique([eventId, userId])
@@ -267,18 +272,50 @@ model EvaluationScore {
   @@unique([evaluationId, criterionId])
 }
 
+
+model PairwiseComparison {
+  id String @id @default(cuid())
+
+  judgeId String
+  judge   Judge @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+
+  projectAId String
+  projectA   Project @relation("PairwiseProjectA", fields: [projectAId], references: [id], onDelete: Cascade)
+
+  projectBId String
+  projectB   Project @relation("PairwiseProjectB", fields: [projectBId], references: [id], onDelete: Cascade)
+
+  winnerProjectId String?
+  winnerProject   Project? @relation("PairwiseWinner", fields: [winnerProjectId], references: [id], onDelete: SetNull)
+
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([judgeId, projectAId, projectBId])
+}
 model AuditLog {
   id String @id @default(cuid())
 
-  actorId String?
-  actor User? @relation("AuditActor", fields: [actorId], references: [id])
-
-  action String
-  entity String
+  action   String
+  entity   String
   entityId String?
+
+  actorId String?
+  actor   User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  eventId String?
+  event   Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
   metadata Json?
 
   createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([eventId])
+  @@index([action])
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 model CommunityVote {
   id        String   @id @default(cuid())

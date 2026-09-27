@@ -269,6 +269,75 @@ async function main() {
     },
   });
 
+    // --------------------------------------------------
+  // SECOND DEMO TEAM + PROJECT (PAIRWISE JUDGING)
+  // --------------------------------------------------
+
+  const team2 = await prisma.team.upsert({
+    where: {
+      eventId_name: {
+        eventId: event.id,
+        name: "Team Nova",
+      },
+    },
+    update: {
+      leaderId: participant2.id,
+    },
+    create: {
+      name: "Team Nova",
+      eventId: event.id,
+      leaderId: participant2.id,
+    },
+  });
+
+  await prisma.teamMember.upsert({
+    where: {
+      teamId_userId: {
+        teamId: team2.id,
+        userId: participant2.id,
+      },
+    },
+    update: {
+      role: "LEADER",
+    },
+    create: {
+      teamId: team2.id,
+      userId: participant2.id,
+      role: "LEADER",
+    },
+  });
+
+  const project2 = await prisma.project.upsert({
+    where: {
+      eventId_slug: {
+        eventId: event.id,
+        slug: "novaguard-ai",
+      },
+    },
+    update: {
+      name: "NovaGuard AI",
+      description:
+        "AI-powered cybersecurity assistant for detecting suspicious messages and online threats.",
+      technologies: "Next.js, TypeScript, Prisma, PostgreSQL, AI",
+      status: "SUBMITTED",
+      trackId: track.id,
+      teamId: team2.id,
+      submittedAt: new Date(),
+    },
+    create: {
+      name: "NovaGuard AI",
+      slug: "novaguard-ai",
+      description:
+        "AI-powered cybersecurity assistant for detecting suspicious messages and online threats.",
+      technologies: "Next.js, TypeScript, Prisma, PostgreSQL, AI",
+      status: "SUBMITTED",
+      eventId: event.id,
+      trackId: track.id,
+      teamId: team2.id,
+      submittedAt: new Date(),
+    },
+  });
+
   // --------------------------------------------------
   // JUDGE
   // --------------------------------------------------
@@ -376,6 +445,20 @@ async function main() {
     create: {
       judgeId: judge.id,
       projectId: project.id,
+    },
+  });
+
+    await prisma.judgeAssignment.upsert({
+    where: {
+      judgeId_projectId: {
+        judgeId: judge.id,
+        projectId: project2.id,
+      },
+    },
+    update: {},
+    create: {
+      judgeId: judge.id,
+      projectId: project2.id,
     },
   });
 

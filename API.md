@@ -1,10 +1,17 @@
-# API Documentation
+## Pairwise Judging
 
-## Overview
+### Submit Pairwise Comparison
 
-The Dogfood Platform exposes a REST-style HTTP API through Next.js App Router API routes.
+`POST /api/events/{slug}/pairwise`
 
-Base URL:
+Allows an assigned judge to compare two submitted projects.
 
-```text
-http://localhost:3000
+Request body:
+
+```json
+{
+  "projectAId": "project-id-a",
+  "projectBId": "project-id-b",
+  "winnerProjectId": "project-id-a",
+  "comment": "Project A demonstrated stronger implementation."
+}

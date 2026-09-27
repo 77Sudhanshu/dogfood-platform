@@ -3,6 +3,7 @@ import { calculateJudgeNormalization } from "../lib/judging/normalization";
 import { calculateWeightedScore } from "../lib/judging/scoring";
 import { validateEvaluationScores } from "../lib/judging/evaluation-validation";
 import { generateBalancedAssignments } from "../lib/judging/assignment";
+import { calculatePairwiseStats } from "@/lib/judging/pairwise";
 
 describe("Judge score normalization", () => {
   it("calculates z-score normalization across evaluations", () => {
@@ -429,5 +430,62 @@ describe("Balanced judge assignment", () => {
     expect(
       generateBalancedAssignments(["J1"], [], 2),
     ).toEqual([]);
+  });
+});
+describe("Pairwise judging", () => {
+  it("calculates wins and losses correctly", () => {
+    const results = [
+      {
+        judgeId: "judge-1",
+        projectAId: "project-a",
+        projectBId: "project-b",
+        winnerProjectId: "project-a",
+      },
+    ];
+
+    expect(calculatePairwiseStats(results)).toEqual([
+      {
+        projectId: "project-a",
+        comparisons: 1,
+        wins: 1,
+        losses: 0,
+        ties: 0,
+      },
+      {
+        projectId: "project-b",
+        comparisons: 1,
+        wins: 0,
+        losses: 1,
+        ties: 0,
+      },
+    ]);
+  });
+
+  it("handles ties", () => {
+    const results = [
+      {
+        judgeId: "judge-1",
+        projectAId: "project-a",
+        projectBId: "project-b",
+        winnerProjectId: null,
+      },
+    ];
+
+    expect(calculatePairwiseStats(results)).toEqual([
+      {
+        projectId: "project-a",
+        comparisons: 1,
+        wins: 0,
+        losses: 0,
+        ties: 1,
+      },
+      {
+        projectId: "project-b",
+        comparisons: 1,
+        wins: 0,
+        losses: 0,
+        ties: 1,
+      },
+    ]);
   });
 });
