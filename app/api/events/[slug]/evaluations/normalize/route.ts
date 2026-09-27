@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { calculateJudgeNormalization } from "@/lib/judging/normalization";
+import { calculateWeightedScore } from "@/lib/judging/scoring";
 
 type RouteContext = {
   params: Promise<{
@@ -91,29 +93,13 @@ export async function GET(
     // Step 1: Calculate weighted raw score for every evaluation.
     const rawResults: RawResult[] = evaluations.map(
       (evaluation) => {
-        let weightedScore = 0;
-        let totalWeight = 0;
-
-        for (const score of evaluation.scores) {
-          const scoreValue = Number(score.score);
-          const maxScore = Number(score.criterion.maxScore);
-          const weight = Number(score.criterion.weight);
-
-          const normalizedScore =
-            maxScore === 0
-              ? 0
-              : scoreValue / maxScore;
-
-          weightedScore +=
-            normalizedScore * weight;
-
-          totalWeight += weight;
-        }
-
-        const rawScore =
-          totalWeight === 0
-            ? 0
-            : (weightedScore / totalWeight) * 100;
+        const rawScore = calculateWeightedScore(
+  evaluation.scores.map((score) => ({
+    score: Number(score.score),
+    maxScore: Number(score.criterion.maxScore),
+    weight: Number(score.criterion.weight),
+  })),
+);
 
         return {
           evaluationId: evaluation.id,
@@ -126,110 +112,7 @@ export async function GET(
       }
     );
 
-    // Step 2: Group scores by judge.
-    const scoresByJudge = new Map<
-      string,
-      number[]
-    >();
-
-    for (const result of rawResults) {
-      const scores =
-        scoresByJudge.get(result.judgeId) ?? [];
-
-      scores.push(result.rawScore);
-
-      scoresByJudge.set(
-        result.judgeId,
-        scores
-      );
-    }
-
-    // Step 3: Calculate mean and standard deviation
-    // for each judge.
-    const judgeStatistics = new Map<
-      string,
-      {
-        mean: number;
-        standardDeviation: number;
-        sampleSize: number;
-      }
-    >();
-
-    for (const [
-      judgeId,
-      scores,
-    ] of scoresByJudge.entries()) {
-      const mean =
-        scores.reduce(
-          (sum, score) => sum + score,
-          0
-        ) / scores.length;
-
-      const variance =
-        scores.reduce(
-          (sum, score) =>
-            sum + Math.pow(score - mean, 2),
-          0
-        ) / scores.length;
-
-      const standardDeviation =
-        Math.sqrt(variance);
-
-      judgeStatistics.set(judgeId, {
-        mean: Number(mean.toFixed(2)),
-        standardDeviation:
-          Number(standardDeviation.toFixed(2)),
-        sampleSize: scores.length,
-      });
-    }
-
-    // Step 4: Calculate cross-judge normalized scores.
-    const results = rawResults.map((result) => {
-      const stats =
-        judgeStatistics.get(result.judgeId)!;
-
-      let zScore: number | null = null;
-      let normalizedScore = result.rawScore;
-      let normalizationApplied = false;
-
-      // A single evaluation or zero standard deviation
-      // does not provide enough information for z-score
-      // normalization.
-      if (
-        stats.sampleSize > 1 &&
-        stats.standardDeviation > 0
-      ) {
-        zScore =
-          (result.rawScore - stats.mean) /
-          stats.standardDeviation;
-
-        // Convert z-score to a readable 0-100 scale.
-        normalizedScore =
-          50 + zScore * 10;
-
-        // Keep the public score inside 0-100.
-        normalizedScore = Math.max(
-          0,
-          Math.min(100, normalizedScore)
-        );
-
-        normalizedScore =
-          Number(normalizedScore.toFixed(2));
-
-        normalizationApplied = true;
-      }
-
-      return {
-        ...result,
-        normalizedScore,
-        zScore:
-          zScore === null
-            ? null
-            : Number(zScore.toFixed(4)),
-        normalizationApplied,
-        judgeStatistics: stats,
-      };
-    });
+    const results = calculateJudgeNormalization(rawResults);
 
     return NextResponse.json({
       event,

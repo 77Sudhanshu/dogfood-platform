@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dogfood Platform
 
-## Getting Started
+A self-hostable hackathon submission and judging platform built for the Dogfood 2026 hackathon.
 
-First, run the development server:
+The platform supports event management, teams, project submissions, judge assignment, rubric-based evaluation, score normalization, CSV export, community voting, comments, audit logging, and role-based access control.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Tech Stack
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Next.js 16
+- TypeScript
+- Prisma ORM
+- PostgreSQL 17
+- Zod
+- JWT-based sessions
+- Docker Compose
+- Vitest
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Core Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Authentication & Roles
 
-## Learn More
+Four application roles are supported:
 
-To learn more about Next.js, take a look at the following resources:
+- `PARTICIPANT`
+- `JUDGE`
+- `ORGANIZER`
+- `ADMIN`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Authorization is enforced server-side in API routes.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The current session role is also checked against the database rather than trusting only the role stored in the session token.
 
-## Deploy on Vercel
+### Event Management
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Event creation
+- Event lifecycle/status
+- Tracks
+- Prizes
+- Teams
+- Team invitations
+- Project submissions
+- Submission deadlines
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Project Submissions
+
+- Draft/edit workflow
+- Team ownership validation
+- One project per team
+- Submission deadline enforcement
+- GitHub repository duplicate detection
+- Public project gallery
+- Project search
+
+### Judging
+
+- Judge registration and assignment
+- Manual judge assignment
+- Balanced batch judge assignment
+- Configurable judges per project
+- Duplicate assignment protection
+- Rubric criteria with configurable weights
+- Server-side score validation
+- Duplicate evaluation protection
+- Judge progress tracking
+- Weighted scoring
+- Cross-judge z-score normalization
+- CSV evaluation export
+
+### Judging Integrity
+
+The platform protects the judging workflow through:
+
+- Backend role isolation
+- Judge/project assignment checks
+- Event boundary checks
+- Required rubric criteria validation
+- Maximum/minimum score validation
+- Database uniqueness constraints
+- Transactional evaluation creation
+- Audit logs
+- Balanced assignment algorithm
+- Normalization utilities with automated tests
+
+Batch assignment actions are recorded in the audit log using:
+
+```text
+BATCH_JUDGE_ASSIGNMENT

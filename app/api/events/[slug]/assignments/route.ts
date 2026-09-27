@@ -2,10 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { generateBalancedAssignments } from "@/lib/judging/assignment";
 
 const assignmentSchema = z.object({
-  judgeId: z.string(),
-  projectId: z.string(),
+  mode: z.enum(["manual", "balanced"]).default("manual"),
+  judgeId: z.string().optional(),
+  projectId: z.string().optional(),
+  judgesPerProject: z.number().int().min(1).max(10).default(2),
 });
 
 type RouteContext = {
@@ -42,7 +45,7 @@ export async function POST(
       },
     });
 
-    console.log("ASSIGNMENT EVENT DEBUG:", { slug, event });
+   
 
     if (!event) {
       return NextResponse.json(
@@ -53,15 +56,11 @@ export async function POST(
 
     const body = await request.json();
 
-console.log("ASSIGNMENT BODY DEBUG:", body);
-console.log("ASSIGNMENT BODY TYPES:", {
-  judgeId: typeof body?.judgeId,
-  projectId: typeof body?.projectId,
-});
+
 
 const result = assignmentSchema.safeParse(body);
 
-console.log("ASSIGNMENT VALIDATION DEBUG:", result);
+
 
     if (!result.success) {
       return NextResponse.json(
@@ -73,8 +72,113 @@ console.log("ASSIGNMENT VALIDATION DEBUG:", result);
       );
     }
 
-    const { judgeId, projectId } = result.data;
-    console.log("ASSIGNMENT IDs:", { judgeId, projectId });
+    const {
+  mode,
+  judgeId,
+  projectId,
+  judgesPerProject,
+} = result.data;
+
+if (mode === "balanced") {
+  const [judges, projects] = await Promise.all([
+    prisma.judge.findMany({
+      where: {
+        eventId: event.id,
+      },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        id: "asc",
+      },
+    }),
+
+    prisma.project.findMany({
+      where: {
+        eventId: event.id,
+        status: "SUBMITTED",
+      },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        id: "asc",
+      },
+    }),
+  ]);
+
+  const generatedAssignments = generateBalancedAssignments(
+    judges.map((judge) => judge.id),
+    projects.map((project) => project.id),
+    judgesPerProject,
+  );
+
+  const existingAssignments =
+    await prisma.judgeAssignment.findMany({
+      where: {
+        judge: {
+          eventId: event.id,
+        },
+      },
+      select: {
+        judgeId: true,
+        projectId: true,
+      },
+    });
+
+  const existingKeys = new Set(
+    existingAssignments.map(
+      (assignment) =>
+        `${assignment.judgeId}:${assignment.projectId}`,
+    ),
+  );
+
+  const newAssignments = generatedAssignments.filter(
+    (assignment) =>
+      !existingKeys.has(
+        `${assignment.judgeId}:${assignment.projectId}`,
+      ),
+  );
+
+  if (newAssignments.length > 0) {
+    await prisma.judgeAssignment.createMany({
+      data: newAssignments,
+      skipDuplicates: true,
+    });
+  }
+  await prisma.auditLog.create({
+  data: {
+    actorId: auth.user.id,
+    action: "BATCH_JUDGE_ASSIGNMENT",
+    entity: "Event",
+    entityId: event.id,
+    metadata: {
+      mode: "balanced",
+      judgesPerProject,
+      judges: judges.length,
+      projects: projects.length,
+      generated: generatedAssignments.length,
+      created: newAssignments.length,
+      skippedExisting:
+        generatedAssignments.length - newAssignments.length,
+    },
+  },
+});
+
+  return NextResponse.json({
+    message: "Balanced judge assignments generated successfully",
+    judges: judges.length,
+    projects: projects.length,
+    judgesPerProject: Math.min(
+      judgesPerProject,
+      judges.length,
+    ),
+    created: newAssignments.length,
+    skippedExisting:
+      generatedAssignments.length - newAssignments.length,
+  });
+}
+    
 
 const judge = await prisma.judge.findUnique({
   where: {
@@ -92,13 +196,7 @@ const judge = await prisma.judge.findUnique({
   },
 });
 
-console.log("JUDGE DIRECT DEBUG:", judge);
-console.log("EXPECTED EVENT ID:", event.id);
-console.log("ASSIGNMENT JUDGE DEBUG:", {
-  judgeId,
-  eventId: event.id,
-  judge,
-});
+
 
     if (!judge) {
       return NextResponse.json(
@@ -121,7 +219,7 @@ console.log("ASSIGNMENT JUDGE DEBUG:", {
       },
     });
     
-    console.log("ASSIGNMENT PROJECT DEBUG:", { projectId, project });
+    
 
     if (!project) {
       return NextResponse.json(

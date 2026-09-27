@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { z } from "zod";
 import { NextResponse } from "next/server";
+import { validateEvaluationScores } from "@/lib/judging/evaluation-validation";
 
 const scoreSchema = z.object({
   criterionId: z.string(),
@@ -24,8 +25,8 @@ export async function POST(
   request: Request,
   context: RouteContext
 ) {
-  try {
-    console.log("🔥 POST EVALUATIONS HANDLER REACHED");
+  try 
+  {
     // Only judges can submit evaluations
     const auth = await requireRole(request, ["JUDGE"]);
 
@@ -49,7 +50,7 @@ export async function POST(
         status: true,
       },
     });
-    console.log("🔥 EVENT RESULT:", event);
+   
 
     if (!event) {
       return NextResponse.json(
@@ -93,11 +94,10 @@ export async function POST(
     }
 
     const { projectId, comment, scores } = result.data;
-    console.log("🔥 EVALUATION INPUT:", {
-  projectId,
-  eventId: event.id,
-});
-const debugProjects = await prisma.project.findMany({
+    const project = await prisma.project.findUnique({
+  where: {
+    id: projectId.trim(),
+  },
   select: {
     id: true,
     name: true,
@@ -105,20 +105,6 @@ const debugProjects = await prisma.project.findMany({
     status: true,
   },
 });
-
-console.log("🔥 ALL PROJECTS FROM EVALUATION ROUTE:", debugProjects);
-console.log("🔥 LOOKING FOR PROJECT ID:", projectId);
-
-    // Find project from the projects we already fetched
-const project = debugProjects.find(
-  (p) => p.id === projectId.trim()
-) ?? null;
-
-console.log("🔥 PROJECT FROM ALL PROJECTS:", project);
-console.log("🔥 EVENT ID:", event.id);
-console.log("🔥 PROJECT EVENT ID:", project?.eventId);
-console.log("🔥 EVENT ID:", event.id);
-console.log("🔥 PROJECT EVENT ID:", project?.eventId);
 
     if (!project) {
   return NextResponse.json(
@@ -230,63 +216,27 @@ const criteria = await prisma.rubricCriterion.findMany({
       );
     }
 
-    // Check that every submitted criterion belongs to this event
-    const criterionMap = new Map(
-      criteria.map((criterion) => [criterion.id, criterion])
-    );
+    const validation = validateEvaluationScores(
+  criteria.map((criterion) => ({
+    id: criterion.id,
+    name: criterion.name,
+    maxScore: criterion.maxScore,
+  })),
+  scores.map((score) => ({
+    criterionId: score.criterionId,
+    score: score.score,
+  })),
+);
 
-    for (const submittedScore of scores) {
-      const criterion = criterionMap.get(
-        submittedScore.criterionId
-      );
+if (!validation.valid) {
+  return NextResponse.json(
+    {
+      error: validation.error,
+    },
+    { status: 400 },
+  );
+}
 
-      if (!criterion) {
-        return NextResponse.json(
-          {
-            error: `Invalid criterion: ${submittedScore.criterionId}`,
-          },
-          { status: 400 }
-        );
-      }
-
-      if (submittedScore.score > criterion.maxScore) {
-        return NextResponse.json(
-          {
-            error: `Score for "${criterion.name}" cannot exceed ${criterion.maxScore}`,
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Make sure every criterion is scored exactly once
-    const submittedCriterionIds = scores.map(
-      (score) => score.criterionId
-    );
-
-    const uniqueCriterionIds = new Set(submittedCriterionIds);
-
-    if (
-      uniqueCriterionIds.size !== submittedCriterionIds.length
-    ) {
-      return NextResponse.json(
-        {
-          error: "A criterion cannot be scored more than once",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (uniqueCriterionIds.size !== criteria.length) {
-      return NextResponse.json(
-        {
-          error: "All rubric criteria must be scored",
-          expected: criteria.length,
-          received: uniqueCriterionIds.size,
-        },
-        { status: 400 }
-      );
-    }
 
     // Create evaluation and all scores atomically
     const evaluation = await prisma.$transaction(async (tx) => {
