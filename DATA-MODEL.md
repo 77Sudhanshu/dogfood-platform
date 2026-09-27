@@ -147,35 +147,35 @@ The main relationships are:
 
 ```text
 Event
- ├── Tracks
- ├── Prizes
- ├── Teams
- ├── Projects
- ├── Judges
- └── Rubrics
+├── Tracks
+├── Prizes
+├── Teams
+├── Projects
+├── Judges
+└── Rubrics
 
 Team
- ├── TeamMembers
- └── Project
+├── TeamMembers
+└── Project
 
 Project
- ├── Evaluation
- ├── CommunityVotes
- └── ProjectComments
+├── Evaluation
+├── CommunityVotes
+└── ProjectComments
 
 Judge
- ├── JudgeAssignments
- └── Evaluations
+├── JudgeAssignments
+└── Evaluations
 
 Rubric
- └── RubricCriteria
+└── RubricCriteria
 
 Evaluation
- └── EvaluationScores
+└── EvaluationScores
 
 User
- ├── TeamMembers
- ├── Judge
- ├── CommunityVotes
- ├── ProjectComments
- └── AuditLogs
+├── TeamMembers
+├── Judge
+├── CommunityVotes
+├── ProjectComments
+└── AuditLogs
