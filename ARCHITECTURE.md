@@ -1,113 +1,54 @@
-# Dogfood Platform — Architecture
+# Architecture
 
-## Overview
+## 1. Overview
 
-Dogfood is a self-hostable hackathon submission and judging platform designed to run locally with Docker Compose.
+Dogfood Platform is a self-hostable hackathon submission and judging platform.
 
-## Technology Stack
+The application is designed to run locally with Docker Compose and uses:
 
 - Next.js
-- React
 - TypeScript
-- Tailwind CSS
 - PostgreSQL
 - Prisma ORM
-- Zod
+- Zod validation
 - JWT-based sessions
-- Docker
 - Docker Compose
 
-## Core Components
+The platform follows a modular full-stack architecture where the Next.js application provides both the web interface and server-side API routes.
 
-### Frontend
+---
 
-The frontend uses Next.js App Router and React.
+## 2. High-Level Architecture
 
-Main areas include:
-
-- Event pages
-- Project gallery
-- Project submissions
-- Authentication
-- Community voting
-- Project comments
-
-### Backend
-
-Backend functionality is implemented through Next.js API routes.
-
-The API handles:
-
-- Authentication
-- Events
-- Teams
-- Projects
-- Judges
-- Judge assignments
-- Rubrics
-- Evaluations
-- Score normalization
-- CSV export
-- Community voting
-- Comments
-- Audit logging
-
-### Authentication and Authorization
-
-Users authenticate with email and password.
-
-A signed JWT is stored in an HTTP-only session cookie.
-
-Supported roles:
-
-- PARTICIPANT
-- JUDGE
-- ORGANIZER
-- ADMIN
-
-Protected API routes enforce role-based authorization on the backend.
-
-### Database
-
-PostgreSQL stores application data.
-
-Prisma manages the database schema and generated client.
-
-Important entities include:
-
-- User
-- Event
-- Track
-- Prize
-- Team
-- TeamMember
-- Project
-- Judge
-- JudgeAssignment
-- Rubric
-- RubricCriterion
-- Evaluation
-- EvaluationScore
-- CommunityVote
-- ProjectComment
-- AuditLog
-
-### Docker Deployment
-
-Docker Compose runs two services:
-
-1. PostgreSQL
-2. Next.js application
-
-The application waits for PostgreSQL to become healthy before starting.
-
-On startup the application:
-
-1. Synchronizes the Prisma schema.
-2. Seeds demo users.
-3. Starts the Next.js production server.
-
-The platform can be started with:
-
-```bash
-docker compose up --build
+```text
+                    ┌─────────────────────────┐
+                    │       Browser/User      │
+                    └────────────┬────────────┘
+                                 │
+                                 │ HTTP
+                                 ▼
+                    ┌─────────────────────────┐
+                    │       Next.js App       │
+                    │                         │
+                    │  Pages / UI             │
+                    │  API Routes              │
+                    │  Authentication         │
+                    │  Authorization           │
+                    │  Validation              │
+                    └────────────┬────────────┘
+                                 │
+                                 │ Prisma
+                                 ▼
+                    ┌─────────────────────────┐
+                    │       PostgreSQL        │
+                    │                         │
+                    │ Users                   │
+                    │ Events                  │
+                    │ Teams                   │
+                    │ Projects                │
+                    │ Judges                  │
+                    │ Rubrics                 │
+                    │ Evaluations             │
+                    │ Votes / Comments        │
+                    │ Audit Logs              │
+                    └─────────────────────────┘
