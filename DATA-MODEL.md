@@ -82,7 +82,7 @@ Connects a user with the judging role to judge-specific event participation.
 
 ### JudgeAssignment
 
-Connects judges to projects and judging rubrics.
+Connects judges to projects for an event.
 
 Assignments control which projects a judge can evaluate.
 
