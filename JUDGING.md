@@ -7,7 +7,9 @@ Dogfood provides a configurable judging workflow for hackathon projects.
 The judging system supports:
 
 - Judge registration
-- Judge assignment
+- Manual judge assignment
+- Balanced batch judge assignment
+- Configurable judges per project
 - Configurable rubrics
 - Weighted scoring
 - Evaluation submission
@@ -22,7 +24,18 @@ Judges can be assigned to projects for an event.
 
 Assignments determine which projects a judge is authorized to evaluate.
 
+The platform supports:
+
+- Manual judge assignment
+- Balanced batch assignment
+- Configurable judges per project
+- Duplicate assignment prevention
+
+Balanced assignment distributes projects deterministically across the available judges.
+
 The backend verifies the judge's assignment before accepting an evaluation.
+
+Existing assignments are preserved when batch assignment is run again.
 
 ## Rubrics
 
@@ -58,6 +71,24 @@ A score cannot exceed the configured maximum score for its criterion.
 
 A judge cannot submit multiple evaluations for the same project.
 
+Evaluation creation, criterion scores, and the corresponding audit record are written transactionally.
+
+## Evaluation Validation
+
+Before an evaluation is stored, the backend verifies:
+
+- The authenticated user has the JUDGE role.
+- The judge belongs to the event.
+- The project belongs to the event.
+- The project has been submitted.
+- The judge is assigned to the project.
+- The evaluation does not already exist.
+- Every submitted criterion belongs to the rubric.
+- No criterion is submitted more than once.
+- Every rubric criterion is scored.
+- Scores are not negative.
+- Scores do not exceed the configured maximum.
+
 ## Role Isolation
 
 Judging operations are protected by backend authorization.
@@ -80,55 +111,21 @@ Organizers can configure judging and access score normalization and exports.
 
 Administrators can access organizer-level judging administration.
 
+## Score Calculation
+
+Each evaluation uses the configured rubric weights.
+
+Criterion scores are normalized against their maximum score and combined according to their configured weights.
+
+The resulting weighted score is represented on a 0–100 scale.
+
 ## Score Normalization
 
 The platform provides a judge z-score normalization endpoint.
 
-The normalization process standardizes raw weighted scores across judges to reduce differences in judging scale.
+For each judge, raw weighted scores are standardized using:
 
-Normalization is restricted to organizers and administrators.
+```text
+z = (rawScore - judgeMean) / judgeStandardDeviation
 
-## Judge Progress
-
-The progress endpoint provides information about a judge's evaluation workload, including assigned projects and completion information.
-
-## CSV Export
-
-Organizers and administrators can export evaluation results as CSV.
-
-The export includes:
-
-- Project name
-- Project slug
-- Judge name
-- Judge email
-- Raw score
-- Submission timestamp
-- Judge comment
-
-## Audit Trail
-
-Important judging actions are recorded in the audit log.
-
-Evaluation submission records include information such as:
-
-- Action
-- Evaluation ID
-- Actor
-- Project
-- Judge
-- Score count
-
-Community voting and project comments are also recorded for traceability.
-
-## Judging Integrity
-
-The judging backend enforces:
-
-- Role-based authorization
-- Judge/project assignment checks
-- Score validation
-- Duplicate evaluation prevention
-- Audit logging
-- Organizer-only normalization
-- Organizer/admin-only score export
+normalizedScore = 50 + (z × 10)
